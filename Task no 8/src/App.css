@@ -1,0 +1,39 @@
+﻿.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.site-header {
+  background-color:  #020d17;
+  color: white;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.site-header h1 {
+  margin: 0;
+}
+
+.site-main {
+  flex: 1;
+  display: grid;
+  place-content: center;
+  padding: 2rem;
+  text-align: center;
+}
+
+.site-main h2 {
+  margin-top: 0;
+}
+
+.site-footer {
+  background-color: #020d17;
+  color: white;
+  padding: 1rem;
+  text-align: center;
+}
+
+.site-footer p {
+  margin: 0;
+}
