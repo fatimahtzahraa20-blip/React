@@ -72,7 +72,9 @@ The `create-user` Edge Function uses the server-only service-role key supplied b
 
 ## First Super Admin
 
-The institute's admin account is **fatima@gmail.com**.
+The institute's admin account is **fatima@gmail.com**.password:a1b2c3d4
+The institute's taecher account is fatimazahra@gmail.com..password:01020304
+Tha institute's student account is zara@gmail.com ...password:00001234
 
 1. Have Fatima create an account through Signup using `fatima@gmail.com`.
 2. Open `supabase/bootstrap_fatima_admin.sql` in the Supabase Dashboard SQL Editor and run it. It promotes her from the default Student role to Super Admin.
