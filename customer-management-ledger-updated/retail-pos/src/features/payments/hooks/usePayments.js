@@ -1,0 +1,3 @@
+import{useMutation,useQuery,useQueryClient}from"@tanstack/react-query";import{getParties,getPayments,postPayment}from"../services/paymentService";
+export const usePayments=()=>useQuery({queryKey:["payments"],queryFn:getPayments});export const useParties=(type)=>useQuery({queryKey:["payment-parties",type],queryFn:()=>getParties(type)});
+export function usePostPayment(options={}){const c=useQueryClient();return useMutation({mutationFn:postPayment,...options,onSuccess:(...a)=>{c.invalidateQueries({queryKey:["payments"]});c.invalidateQueries({queryKey:["payment-parties"]});c.invalidateQueries({queryKey:["general-ledger"]});options.onSuccess?.(...a);}});}
