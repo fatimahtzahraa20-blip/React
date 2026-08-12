@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Production builds
+dist/
+
+# TypeScript build cache and generated Vite config files
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test coverage
+coverage/
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
