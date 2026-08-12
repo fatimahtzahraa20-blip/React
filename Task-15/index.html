@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Searchable Data Table</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="card">
+        <div class="header-row">
+          <div>
+            <p class="eyebrow">Workspace</p>
+            <h1>Client Directory</h1>
+          </div>
+          <span id="resultCount" class="result-badge" aria-live="polite">0 records</span>
+        </div>
+
+        <label class="search-wrap" for="searchInput">
+          <span class="search-icon" aria-hidden="true">⌕</span>
+          <input
+            id="searchInput"
+            type="search"
+            placeholder="Search by name, role, team, or status"
+            autocomplete="off"
+          />
+        </label>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Department</th>
+                <th>Status</th>
+                <th>Location</th>
+                <th>Email</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+
+        <p id="emptyState" class="empty-state" hidden>No matching records found.</p>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
