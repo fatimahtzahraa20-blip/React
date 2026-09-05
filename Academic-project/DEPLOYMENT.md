@@ -14,11 +14,11 @@ Copy these values from your Supabase project settings into Vercel's project Envi
 | --- | --- |
 | `VITE_SUPABASE_URL` | Your Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | Your Supabase public anon key |
-| `VITE_ENABLE_DEMO_LOGIN` | `false` for normal account sign-in |
+
 
 Select Production and, if needed, Preview environments. Do not upload your `.env` file. These VITE values are public browser configuration; never add a service-role key here.
 
-For a public academic demonstration with the existing one-click role shortcuts, explicitly set `VITE_ENABLE_DEMO_LOGIN=true`. Optional `VITE_DEMO_*` overrides are listed in `.env.example`. Those credentials become public and must belong only to demonstration accounts. With this option off, users enter their own credentials.
+Role shortcuts autofill the public demonstration credentials in both local and deployed builds. `VITE_ENABLE_DEMO_LOGIN` is no longer used; an old `false` value does not disable autofill. Optional `VITE_DEMO_*` overrides are listed in `.env.example`. Use demonstration accounts only because their credentials are visible in browser code. Supabase still verifies the password and database role.
 
 Click **Deploy**. Changes to environment variables require a new deployment because Vite embeds them at build time.
 
