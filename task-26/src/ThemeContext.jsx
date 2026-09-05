@@ -1,0 +1,5 @@
+import { useState, useEffect, createContext, useContext } from "react";
+const ThemeContext=createContext(null),STORAGE_KEY="tinctura-theme";
+export const THEMES=["linen","midnight","forest","ocean","plum"];
+export function ThemeProvider({children}){const [theme,setTheme]=useState(()=>{const saved=localStorage.getItem(STORAGE_KEY);if(THEMES.includes(saved))return saved;return matchMedia("(prefers-color-scheme: dark)").matches?"midnight":"linen"});useEffect(()=>{document.documentElement.dataset.theme=theme;localStorage.setItem(STORAGE_KEY,theme)},[theme]);useEffect(()=>{const mq=matchMedia("(prefers-color-scheme: dark)"),handler=e=>{if(!localStorage.getItem(STORAGE_KEY+"-manual"))setTheme(e.matches?"midnight":"linen")};mq.addEventListener("change",handler);return()=>mq.removeEventListener("change",handler)},[]);const setManual=t=>{if(THEMES.includes(t)){localStorage.setItem(STORAGE_KEY+"-manual","1");setTheme(t)}};return <ThemeContext.Provider value={{theme,setTheme:setManual}}>{children}</ThemeContext.Provider>}
+export function useTheme(){const value=useContext(ThemeContext);if(!value)throw new Error("useTheme must be used within ThemeProvider");return value}

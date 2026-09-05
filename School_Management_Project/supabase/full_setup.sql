@@ -1,0 +1,366 @@
+﻿-- Northstar School Management - Complete Supabase Setup
+-- Run this once in Supabase Dashboard > SQL Editor.
+-- Creates schema, triggers, authorization helpers, RLS, storage policies and starter catalog data.
+
+-- Northstar School Management - normalized PostgreSQL schema
+create extension if not exists "pgcrypto";
+
+create type public.app_role as enum ('super_admin', 'admin', 'teacher', 'student');
+create type public.assignment_status as enum ('draft', 'published', 'closed');
+create type public.submission_status as enum ('submitted', 'reviewed', 'returned');
+create type public.attendance_status as enum ('present', 'absent', 'late', 'leave');
+
+create table public.roles (
+  id uuid primary key default gen_random_uuid(),
+  name public.app_role not null unique,
+  description text,
+  created_at timestamptz not null default now()
+);
+
+create table public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  full_name text not null,
+  email text not null,
+  phone text,
+  avatar_url text,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table public.profile_roles (
+  profile_id uuid not null references public.profiles(id) on delete cascade,
+  role_id uuid not null references public.roles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (profile_id, role_id)
+);
+
+create table public.courses (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  code text not null unique,
+  description text,
+  duration_months integer check (duration_months > 0),
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table public.batches (
+  id uuid primary key default gen_random_uuid(),
+  course_id uuid not null references public.courses(id) on delete restrict,
+  name text not null,
+  timing text not null,
+  start_date date not null,
+  end_date date,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(course_id, name)
+);
+
+create table public.students (
+  id uuid primary key default gen_random_uuid(),
+  profile_id uuid not null unique references public.profiles(id) on delete cascade,
+  application_id text not null unique,
+  father_name text not null,
+  address text,
+  course_id uuid not null references public.courses(id) on delete restrict,
+  batch_id uuid not null references public.batches(id) on delete restrict,
+  enrollment_date date not null default current_date,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table public.teachers (
+  id uuid primary key default gen_random_uuid(),
+  profile_id uuid not null unique references public.profiles(id) on delete cascade,
+  employee_id text not null unique,
+  specialization text,
+  joining_date date not null default current_date,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table public.teacher_batches (
+  teacher_id uuid not null references public.teachers(id) on delete cascade,
+  batch_id uuid not null references public.batches(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (teacher_id, batch_id)
+);
+
+create table public.assignments (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  description text not null,
+  course_id uuid not null references public.courses(id) on delete restrict,
+  batch_id uuid not null references public.batches(id) on delete restrict,
+  created_by uuid not null references public.profiles(id) on delete restrict,
+  due_at timestamptz not null,
+  status public.assignment_status not null default 'draft',
+  max_marks numeric(6,2) check (max_marks >= 0),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table public.assignment_files (
+  id uuid primary key default gen_random_uuid(),
+  assignment_id uuid not null references public.assignments(id) on delete cascade,
+  storage_path text not null unique,
+  file_name text not null,
+  mime_type text not null,
+  size_bytes bigint not null check (size_bytes > 0),
+  created_at timestamptz not null default now()
+);
+
+create table public.assignment_submissions (
+  id uuid primary key default gen_random_uuid(),
+  assignment_id uuid not null references public.assignments(id) on delete cascade,
+  student_id uuid not null references public.students(id) on delete cascade,
+  remarks text,
+  status public.submission_status not null default 'submitted',
+  marks numeric(6,2) check (marks >= 0),
+  feedback text,
+  submitted_at timestamptz not null default now(),
+  reviewed_at timestamptz,
+  updated_at timestamptz not null default now(),
+  unique(assignment_id, student_id)
+);
+
+create table public.submission_files (
+  id uuid primary key default gen_random_uuid(),
+  submission_id uuid not null references public.assignment_submissions(id) on delete cascade,
+  storage_path text not null unique,
+  file_name text not null,
+  mime_type text not null,
+  size_bytes bigint not null check (size_bytes > 0),
+  created_at timestamptz not null default now()
+);
+
+create table public.attendance (
+  id uuid primary key default gen_random_uuid(),
+  student_id uuid not null references public.students(id) on delete cascade,
+  batch_id uuid not null references public.batches(id) on delete cascade,
+  attendance_date date not null,
+  status public.attendance_status not null,
+  marked_by uuid not null references public.profiles(id) on delete restrict,
+  remarks text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(student_id, attendance_date)
+);
+
+create table public.notifications (
+  id uuid primary key default gen_random_uuid(),
+  recipient_id uuid not null references public.profiles(id) on delete cascade,
+  title text not null,
+  message text not null,
+  link text,
+  read_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create table public.activity_logs (
+  id uuid primary key default gen_random_uuid(),
+  actor_id uuid references public.profiles(id) on delete set null,
+  action text not null,
+  entity_type text not null,
+  entity_id uuid,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index students_course_idx on public.students(course_id);
+create index students_batch_idx on public.students(batch_id);
+create index assignments_batch_due_idx on public.assignments(batch_id, due_at);
+create index submissions_assignment_idx on public.assignment_submissions(assignment_id);
+create index attendance_batch_date_idx on public.attendance(batch_id, attendance_date);
+create index notifications_recipient_idx on public.notifications(recipient_id, created_at desc);
+create index activity_logs_created_idx on public.activity_logs(created_at desc);
+
+insert into public.roles(name, description) values
+  ('super_admin', 'Full platform access'),
+  ('admin', 'Institute administration access'),
+  ('teacher', 'Teaching and class management access'),
+  ('student', 'Student self-service access')
+on conflict (name) do nothing;
+
+create or replace function public.set_updated_at()
+returns trigger language plpgsql security invoker set search_path = '' as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+create trigger profiles_updated before update on public.profiles for each row execute function public.set_updated_at();
+create trigger courses_updated before update on public.courses for each row execute function public.set_updated_at();
+create trigger batches_updated before update on public.batches for each row execute function public.set_updated_at();
+create trigger students_updated before update on public.students for each row execute function public.set_updated_at();
+create trigger teachers_updated before update on public.teachers for each row execute function public.set_updated_at();
+create trigger assignments_updated before update on public.assignments for each row execute function public.set_updated_at();
+create trigger submissions_updated before update on public.assignment_submissions for each row execute function public.set_updated_at();
+create trigger attendance_updated before update on public.attendance for each row execute function public.set_updated_at();
+
+create or replace function public.handle_new_user()
+returns trigger language plpgsql security definer set search_path = '' as $$
+declare
+  student_role_id uuid;
+begin
+  insert into public.profiles(id, full_name, email)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data ->> 'full_name', split_part(new.email, '@', 1)),
+    coalesce(new.email, '')
+  );
+  select id into student_role_id from public.roles where name = 'student';
+  insert into public.profile_roles(profile_id, role_id) values (new.id, student_role_id);
+  return new;
+end;
+$$;
+
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+
+-- Authorization helpers
+create or replace function public.has_role(requested_role public.app_role)
+returns boolean
+language sql stable security definer set search_path = ''
+as $$
+  select exists (
+    select 1 from public.profile_roles pr
+    join public.roles r on r.id = pr.role_id
+    where pr.profile_id = auth.uid() and r.name = requested_role
+  );
+$$;
+
+create or replace function public.is_admin()
+returns boolean language sql stable security definer set search_path = '' as $$
+  select public.has_role('super_admin') or public.has_role('admin');
+$$;
+
+grant execute on function public.has_role(public.app_role) to authenticated;
+grant execute on function public.is_admin() to authenticated;
+
+alter table public.roles enable row level security;
+alter table public.profiles enable row level security;
+alter table public.profile_roles enable row level security;
+alter table public.courses enable row level security;
+alter table public.batches enable row level security;
+alter table public.students enable row level security;
+alter table public.teachers enable row level security;
+alter table public.teacher_batches enable row level security;
+alter table public.assignments enable row level security;
+alter table public.assignment_files enable row level security;
+alter table public.assignment_submissions enable row level security;
+alter table public.submission_files enable row level security;
+alter table public.attendance enable row level security;
+alter table public.notifications enable row level security;
+alter table public.activity_logs enable row level security;
+
+create policy "roles readable by authenticated" on public.roles for select to authenticated using (true);
+create policy "roles managed by super admin" on public.roles for all to authenticated using (public.has_role('super_admin')) with check (public.has_role('super_admin'));
+
+create policy "profiles visible to authenticated" on public.profiles for select to authenticated using (true);
+create policy "own profile editable" on public.profiles for update to authenticated using (id = auth.uid()) with check (id = auth.uid());
+create policy "profiles managed by admins" on public.profiles for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+create policy "own roles visible" on public.profile_roles for select to authenticated using (profile_id = auth.uid() or public.is_admin());
+create policy "roles assigned by admins" on public.profile_roles for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+create policy "courses readable" on public.courses for select to authenticated using (true);
+create policy "courses managed by admins" on public.courses for all to authenticated using (public.is_admin()) with check (public.is_admin());
+create policy "batches readable" on public.batches for select to authenticated using (true);
+create policy "batches managed by admins" on public.batches for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+create policy "students visible to staff or self" on public.students for select to authenticated
+using (public.is_admin() or public.has_role('teacher') or profile_id = auth.uid());
+create policy "students managed by admins" on public.students for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+create policy "teachers visible to authenticated" on public.teachers for select to authenticated using (true);
+create policy "teachers managed by admins" on public.teachers for all to authenticated using (public.is_admin()) with check (public.is_admin());
+create policy "teacher batches readable" on public.teacher_batches for select to authenticated using (true);
+create policy "teacher batches managed by admins" on public.teacher_batches for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+create policy "published assignments visible" on public.assignments for select to authenticated
+using (status = 'published' or public.is_admin() or created_by = auth.uid());
+create policy "assignments created by staff" on public.assignments for insert to authenticated
+with check ((public.is_admin() or public.has_role('teacher')) and created_by = auth.uid());
+create policy "assignments updated by owner or admin" on public.assignments for update to authenticated
+using (created_by = auth.uid() or public.is_admin()) with check (created_by = auth.uid() or public.is_admin());
+create policy "assignments deleted by owner or admin" on public.assignments for delete to authenticated
+using (created_by = auth.uid() or public.is_admin());
+create policy "assignment files readable" on public.assignment_files for select to authenticated using (true);
+create policy "assignment files managed by staff" on public.assignment_files for all to authenticated
+using (public.is_admin() or public.has_role('teacher')) with check (public.is_admin() or public.has_role('teacher'));
+
+create policy "submissions visible to owner and staff" on public.assignment_submissions for select to authenticated
+using (
+  public.is_admin() or public.has_role('teacher') or
+  exists(select 1 from public.students s where s.id = student_id and s.profile_id = auth.uid())
+);
+create policy "students create own submissions" on public.assignment_submissions for insert to authenticated
+with check (exists(select 1 from public.students s where s.id = student_id and s.profile_id = auth.uid()));
+create policy "submissions updated by owner or staff" on public.assignment_submissions for update to authenticated
+using (
+  public.is_admin() or public.has_role('teacher') or
+  exists(select 1 from public.students s where s.id = student_id and s.profile_id = auth.uid())
+);
+create policy "submission files follow submission access" on public.submission_files for select to authenticated
+using (exists(select 1 from public.assignment_submissions sub where sub.id = submission_id));
+create policy "submission files created by students" on public.submission_files for insert to authenticated
+with check (exists(select 1 from public.assignment_submissions sub join public.students s on s.id = sub.student_id where sub.id = submission_id and s.profile_id = auth.uid()));
+
+create policy "attendance visible to staff or student" on public.attendance for select to authenticated
+using (
+  public.is_admin() or public.has_role('teacher') or
+  exists(select 1 from public.students s where s.id = student_id and s.profile_id = auth.uid())
+);
+create policy "attendance marked by staff" on public.attendance for insert to authenticated
+with check ((public.is_admin() or public.has_role('teacher')) and marked_by = auth.uid());
+create policy "attendance updated by staff" on public.attendance for update to authenticated
+using (public.is_admin() or public.has_role('teacher')) with check (public.is_admin() or public.has_role('teacher'));
+
+create policy "own notifications visible" on public.notifications for select to authenticated using (recipient_id = auth.uid());
+create policy "own notifications updateable" on public.notifications for update to authenticated using (recipient_id = auth.uid()) with check (recipient_id = auth.uid());
+create policy "notifications created by staff" on public.notifications for insert to authenticated with check (public.is_admin() or public.has_role('teacher'));
+create policy "activity visible to admins" on public.activity_logs for select to authenticated using (public.is_admin());
+create policy "activity created by authenticated" on public.activity_logs for insert to authenticated with check (actor_id = auth.uid());
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values
+  ('avatars', 'avatars', true, 5242880, array['image/jpeg','image/png','image/webp']),
+  ('assignment-files', 'assignment-files', false, 15728640, array['application/pdf','image/jpeg','image/png','image/webp']),
+  ('submission-files', 'submission-files', false, 15728640, array['application/pdf','image/jpeg','image/png','image/webp'])
+on conflict (id) do nothing;
+
+create policy "avatar images public" on storage.objects for select using (bucket_id = 'avatars');
+create policy "users manage own avatar" on storage.objects for all to authenticated
+using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text)
+with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "assignment files readable by authenticated" on storage.objects for select to authenticated using (bucket_id = 'assignment-files');
+create policy "staff manage assignment files" on storage.objects for all to authenticated
+using (bucket_id = 'assignment-files' and (public.is_admin() or public.has_role('teacher')))
+with check (bucket_id = 'assignment-files' and (public.is_admin() or public.has_role('teacher')));
+create policy "submission files readable by authenticated" on storage.objects for select to authenticated using (bucket_id = 'submission-files');
+create policy "students upload own submission files" on storage.objects for insert to authenticated
+with check (bucket_id = 'submission-files' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "students manage own submission files" on storage.objects for update to authenticated
+using (bucket_id = 'submission-files' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "students delete own submission files" on storage.objects for delete to authenticated
+using (bucket_id = 'submission-files' and (storage.foldername(name))[1] = auth.uid()::text);
+
+
+insert into public.courses(name, code, description, duration_months)
+values
+  ('Web Development', 'WD-01', 'Modern full-stack web development', 12),
+  ('Graphic Design', 'GD-01', 'Visual design and digital media', 6)
+on conflict (code) do nothing;
+
+insert into public.batches(course_id, name, timing, start_date, end_date)
+select id, 'Morning 2026', '09:00â€“11:00', '2026-01-05', '2026-12-18'
+from public.courses where code = 'WD-01'
+on conflict (course_id, name) do nothing;
+
