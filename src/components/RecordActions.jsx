@@ -1,0 +1,11 @@
+﻿import { useState } from 'react';
+import { canManageRecord } from '../lib/access';
+import * as api from '../lib/queries';
+const fields={faculty:[['full_name','Full name'],['max_credits','Credit limit','number']],student:[['student_no','Student number'],['full_name','Full name']],offering:[['semester','Semester'],['section','Section']],thesis:[['title','Thesis title'],['deadline','Deadline','date']],conflict:[['kind','Issue type'],['message','Description']],programme:[['code','Programme code'],['name','Programme name']],session:[['title','Session title']]};
+export default function RecordActions({kind,row,role,busy,action}){
+ const [mode,setMode]=useState(''),[error,setError]=useState('');
+ if(!canManageRecord(role,kind))return null;
+ const locked=row.locked||kind==='session'&&row.status==='approved';
+ const run=(fn,message)=>action(async()=>{setError('');try{await fn();setMode('');}catch(e){setError(e.message);throw e;}},message);
+ return <div className="record-actions"><div className="record-action-buttons"><button disabled={busy||locked} type="button" onClick={()=>{setMode(mode==='edit'?'':'edit');setError('');}}>Edit</button><button disabled={busy||locked} type="button" className="delete-button" onClick={()=>{setMode('delete');setError('');}}>Delete</button></div>{mode==='edit'&&<form className="inline-editor" onSubmit={e=>{e.preventDefault();const values=Object.fromEntries(new FormData(e.currentTarget));run(()=>api.editRecord(kind,row.id,values),'Record updated.');}}>{fields[kind].map(([name,label,type])=><label key={name}>{label}<input required name={name} type={type||'text'} min={type==='number'?1:undefined} max={type==='number'?60:undefined} defaultValue={row[name]??''}/></label>)}<button disabled={busy}>Save changes</button><button type="button" disabled={busy} onClick={()=>setMode('')}>Cancel</button></form>}{mode==='delete'&&<div className="delete-confirm"><p>Delete {row.full_name||row.title||row.code||row.message||'this record'}? Records with dependent academic data cannot be deleted.</p><button disabled={busy} className="delete-button" onClick={()=>run(()=>api.deleteRecord(kind,row.id),'Record deleted.')}>Confirm delete</button><button disabled={busy} onClick={()=>setMode('')}>Cancel</button></div>}{error&&<p className="red" role="alert">{error}</p>}</div>;
+}
