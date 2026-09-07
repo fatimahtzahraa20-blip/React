@@ -1,0 +1,29 @@
+{
+  "name": "task-80-request-deduplication",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "concurrently --kill-others --names api,web \"npm run server\" \"npm run dev:ui\"",
+    "server": "node --env-file=.env server.js",
+    "test": "node --test",
+    "build": "vite build",
+    "preview": "vite preview",
+    "dev:ui": "vite"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.57.0",
+    "express": "^5.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.1",
+    "concurrently": "^10.0.5",
+    "react-test-renderer": "^18.3.1",
+    "vite": "^8.2.2"
+  }
+}
