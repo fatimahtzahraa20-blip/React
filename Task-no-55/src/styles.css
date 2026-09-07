@@ -1,0 +1,20 @@
+:root { font-family: system-ui, sans-serif; color: #19352d; background: #f3f7f4; font-synthesis: none; line-height: 1.6; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { max-width: 800px; margin: 10vh auto; padding: 24px; }
+.eyebrow { color: #427660; font-size: 12px; font-weight: 700; letter-spacing: .15em; }
+h1 { font-size: clamp(32px, 6vw, 52px); line-height: 1.15; letter-spacing: -.04em; }
+.intro { max-width: 580px; color: #52655b; font-size: 18px; }
+section { margin-top: 36px; padding: 28px; background: white; border: 1px solid #d9e5dc; border-radius: 18px; }
+h2 { font-size: 22px; }
+.badge { display: inline-block; border-radius: 20px; padding: 4px 12px; background: #fff1ce; color: #735208; font-size: 13px; font-weight: 600; }
+.badge.ready { background: #d9f6e8; color: #166344; }
+li { padding: 5px 0; }
+code { background: #edf3ef; padding: 2px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+.footnote { font-size: 13px; color: #52655b; }
+
+button { background: #166344; color: white; border: 0; border-radius: 8px; padding: 12px 18px; font: inherit; font-weight: 600; cursor: pointer; }
+button:hover { background: #104d34; }
+button:focus-visible { outline: 3px solid #427660; outline-offset: 3px; }
+button:disabled { opacity: .65; cursor: wait; }
+
