@@ -1,0 +1,35 @@
+import express from 'express';
+import multer from 'multer';
+import cookieParser from 'cookie-parser';
+import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+const app=express(), root=path.resolve('data');
+fs.mkdirSync(path.join(root,'uploads'),{recursive:true});
+const dbPath=path.join(root,'db.json');
+let db=fs.existsSync(dbPath)?JSON.parse(fs.readFileSync(dbPath,'utf8')):{users:[],files:[]};
+const save=()=>fs.writeFileSync(dbPath,JSON.stringify(db));
+if(!db.users.some(user=>user.email==='demo@droply.com')){
+ const salt=randomBytes(16).toString('hex');
+ db.users.push({id:randomBytes(16).toString('hex'),name:'Demo User',email:'demo@droply.com',salt,hash:scryptSync('Droply123!',salt,64).toString('hex')});
+ save();
+}
+const sessions=new Map();
+app.use(express.json());app.use(cookieParser());
+app.use('/api',(req,res,next)=>{if(req.headers.origin && req.headers.origin!==`${req.protocol}://${req.headers.host}` && !/^http:\/\/(localhost|127\.0\.0\.1):5173$/.test(req.headers.origin))return res.status(403).json({error:'Origin not allowed'});next();});
+const publicUser=u=>({id:u.id,name:u.name,email:u.email});
+const auth=(req,res,next)=>{const s=sessions.get(req.cookies.session);if(!s||s.exp<Date.now())return res.status(401).json({error:'Please sign in to continue.'});req.user=db.users.find(u=>u.id===s.id);if(!req.user)return res.sendStatus(401);next();};
+app.post('/api/auth/:mode',(req,res)=>{const {name,email,password}=req.body;if(!email||!/^\S+@\S+\.\S+$/.test(email)||typeof password!=='string'||password.length<8)return res.status(400).json({error:'Enter a valid email and a password of at least 8 characters.'});let u=db.users.find(u=>u.email===email.toLowerCase());if(req.params.mode==='register'){if(u)return res.status(409).json({error:'This email already has an account. Please sign in.'});if(!name?.trim())return res.status(400).json({error:'Enter your name.'});const salt=randomBytes(16).toString('hex');u={id:randomBytes(16).toString('hex'),name:name.trim(),email:email.toLowerCase(),salt,hash:scryptSync(password,salt,64).toString('hex')};db.users.push(u);save();}else if(req.params.mode!=='login'||!u||!timingSafeEqual(scryptSync(password,u.salt,64),Buffer.from(u.hash,'hex')))return res.status(401).json({error:'Email or password is incorrect.'});const token=randomBytes(32).toString('hex');sessions.set(token,{id:u.id,exp:Date.now()+604800000});res.cookie('session',token,{httpOnly:true,sameSite:'lax',maxAge:604800000,secure:req.secure});res.json(publicUser(u));});
+app.get('/api/me',auth,(req,res)=>res.json(publicUser(req.user)));
+app.post('/api/logout',(req,res)=>{sessions.delete(req.cookies.session);res.clearCookie('session');res.json({ok:true});});
+app.get('/api/files',auth,(req,res)=>res.json(db.files.filter(f=>f.owner===req.user.id).map(({disk,...f})=>f)));
+const upload=multer({fileFilter:(req,file,cb)=>cb(['image/jpeg','image/png','image/webp','image/gif'].includes(file.mimetype)?null:new Error('Only JPEG, PNG, WebP and GIF images are supported.'),true),dest:path.join(root,'uploads'),limits:{fileSize:100*1024*1024,files:20}});
+app.post('/api/files',auth,upload.array('files',20),(req,res)=>{const added=(req.files||[]).map(f=>({id:randomBytes(16).toString('hex'),owner:req.user.id,name:f.originalname,size:f.size,type:f.mimetype,disk:f.filename,date:new Date().toISOString(),starred:false,shared:null}));db.files.push(...added);save();res.json({count:added.length});});
+app.patch('/api/files/:id',auth,(req,res)=>{const f=db.files.find(f=>f.id===req.params.id&&f.owner===req.user.id);if(!f)return res.sendStatus(404);if(typeof req.body.starred==='boolean')f.starred=req.body.starred;if(req.body.share===true)f.shared=f.shared||randomBytes(24).toString('hex');if(req.body.share===false)f.shared=null;save();res.json({shared:f.shared});});
+app.get('/api/files/:id/download',auth,(req,res)=>{const f=db.files.find(f=>f.id===req.params.id&&f.owner===req.user.id);if(!f)return res.sendStatus(404);res.download(path.join(root,'uploads',f.disk),f.name);});
+app.get('/api/share/:token',(req,res)=>{const f=db.files.find(f=>f.shared===req.params.token);if(!f)return res.status(404).send('This sharing link is no longer available.');res.download(path.join(root,'uploads',f.disk),f.name);});
+app.delete('/api/files/:id',auth,(req,res)=>{const f=db.files.find(f=>f.id===req.params.id&&f.owner===req.user.id);if(!f)return res.sendStatus(404);fs.unlinkSync(path.join(root,'uploads',f.disk));db.files=db.files.filter(x=>x!==f);save();res.json({ok:true});});
+app.use((err,req,res,next)=>res.status(400).json({error:err.code==='LIMIT_FILE_SIZE'?'Each file must be smaller than 100 MB.':err.message||'Something went wrong.'}));
+app.use(express.static('dist'));app.get('*',(req,res)=>res.sendFile(path.resolve('dist/index.html')));
+const port=process.env.PORT||3001;
+app.listen(port,()=>console.log(`Image Uploader API running at http://localhost:${port}`));
