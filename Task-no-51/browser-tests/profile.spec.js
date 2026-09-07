@@ -1,0 +1,37 @@
+﻿import { test, expect } from '@playwright/test';
+import sharp from 'sharp';
+const image = await sharp({ create: { width: 120, height: 80, channels: 3, background: 'red' } }).png().toBuffer();
+const upload = page => page.getByLabel('Choose profile picture').setInputFiles({ name: 'portrait.png', mimeType: 'image/png', buffer: image });
+test('save persists, cancel restores, remove persists', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('Browser-only mode', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Save picture' }).click();
+  await expect(page.getByRole('status')).toContainText('Choose an image first');
+  await upload(page);
+  await expect(page.getByAltText('Preview of selected picture')).toBeVisible();
+  await page.getByRole('button', { name: 'Save picture' }).click();
+  await expect(page.getByRole('status')).toContainText('Picture saved in this browser');
+  await page.reload();
+  await expect(page.getByAltText('Your saved profile picture')).toBeVisible();
+  await upload(page);
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(page.getByAltText('Your saved profile picture')).toBeVisible();
+  await expect(page.getByAltText('Preview of selected picture')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Remove picture', exact: true }).click();
+  await page.getByRole('button', { name: 'Keep picture', exact: true }).click();
+  await expect(page.getByAltText('Your saved profile picture')).toBeVisible();
+  await page.getByRole('button', { name: 'Remove picture', exact: true }).click();
+  await page.getByRole('button', { name: 'Remove', exact: true }).click();
+  await page.reload();
+  await expect(page.getByAltText('Your saved profile picture')).toHaveCount(0);
+});
+test('rejects a corrupt image and remains usable on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await page.getByLabel('Choose profile picture').setInputFiles({ name: 'bad.png', mimeType: 'image/png', buffer: Buffer.from('not an image') });
+  await expect(page.getByRole('alert')).toContainText('could not be opened');
+  await upload(page);
+  await page.getByRole('button', { name: 'Save picture' }).click();
+  await expect(page.getByAltText('Your saved profile picture')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
