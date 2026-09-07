@@ -1,0 +1,40 @@
+﻿import { chromium, expect } from '@playwright/test';
+const browser = await chromium.launch({ channel: 'msedge', headless: true });
+try {
+ const page = await browser.newPage();
+ const errors = []; page.on('pageerror', error => errors.push(error.message));
+ await page.addInitScript(() => {
+   Object.defineProperty(Crypto.prototype, 'randomUUID', { value: undefined, configurable: true });
+   Object.defineProperty(AbortSignal, 'timeout', { value: undefined, configurable: true });
+ });
+ await page.goto(process.env.APP_URL || 'http://127.0.0.1:5173');
+ const send = page.getByRole('button', { name: 'Send request' });
+ const panel = page.getByRole('tabpanel');
+ await send.click(); await expect(panel).toContainText('Provide Authorization'); await expect(send).toBeEnabled();
+ console.log('PASS missing token produces 401 without getting stuck');
+ await page.getByRole('button', { name: 'Generate token' }).click();
+ const network = page.waitForRequest(r => r.url().endsWith('/api/protected'));
+ await send.click(); const request = await network;
+ if (!request.headers().authorization?.startsWith('Bearer ey')) throw new Error('Missing Bearer header');
+ await expect(panel).toContainText('Access granted');
+ console.log('PASS generation and actual Bearer request succeed without optional browser APIs');
+ await page.getByLabel('Protected endpoint').selectOption('/api/admin'); await send.click(); await expect(panel).toContainText('Administrator role required');
+ await page.locator('summary').click(); await page.getByLabel('Role', { exact: true }).selectOption('admin');
+ await page.getByRole('button', { name: 'Generate token' }).click(); await send.click(); await expect(panel).toContainText('Administrator access granted');
+ console.log('PASS role authorization');
+ await page.getByLabel('Protected endpoint').selectOption('/api/echo'); await page.getByLabel('JSON request body').fill('{"check":64}'); await send.click(); await expect(panel).toContainText('"check": 64');
+ console.log('PASS JSON POST');
+ await page.getByRole('button', { name: 'Expired', exact: true }).click(); await send.click(); await expect(panel).toContainText('Token has expired');
+ console.log('PASS expired token');
+ await page.route('**/api/echo', route => route.fulfill({ status: 502, contentType: 'text/html', body: '<h1>Bad gateway</h1>' }));
+ await send.click(); await expect(panel).toContainText('non-JSON response'); await expect(page.locator('.tabs')).toContainText('502'); await expect(send).toBeEnabled();
+ console.log('PASS non-JSON server errors retain status and restore button');
+ await page.unroute('**/api/echo');
+ await page.route('**/api/echo', route => route.abort()); await send.click(); await expect(panel).toContainText('Unable to reach'); await expect(send).toBeEnabled();
+ console.log('PASS network failure restores button');
+ await page.unroute('**/api/echo');
+ await page.getByRole('button', { name: 'Generate token' }).click(); await send.click(); await expect(panel).toContainText('Authenticated request received');
+ console.log('PASS retry succeeds');
+ if (errors.length) throw new Error(errors.join('\n'));
+ console.log('PASS no browser runtime errors');
+} finally { await browser.close(); }
