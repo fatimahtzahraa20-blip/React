@@ -1,0 +1,96 @@
+[
+  {
+    "id": "task-1",
+    "title": "Map the onboarding journey",
+    "description": "Audit the first-run experience and mark the points where people hesitate.",
+    "status": "backlog",
+    "priority": "high",
+    "assignee": "Fatima",
+    "dueDate": "2026-09-12",
+    "tags": [
+      "research",
+      "ux"
+    ],
+    "createdAt": "2026-09-01T08:00:00.000Z",
+    "updatedAt": "2026-09-07T22:56:46.813Z"
+  },
+  {
+    "id": "task-2",
+    "title": "Write empty state copy",
+    "description": "Give every quiet corner of the product a useful next step.",
+    "status": "backlog",
+    "priority": "low",
+    "assignee": "You",
+    "dueDate": "2026-09-15",
+    "tags": [
+      "content"
+    ],
+    "createdAt": "2026-09-02T08:00:00.000Z"
+  },
+  {
+    "id": "task-3",
+    "title": "Prototype command menu",
+    "description": "Explore a keyboard-first way to reach frequent actions.",
+    "status": "in-progress",
+    "priority": "medium",
+    "assignee": "Jordan",
+    "dueDate": "2026-09-10",
+    "tags": [
+      "product",
+      "prototype"
+    ],
+    "createdAt": "2026-09-03T08:00:00.000Z"
+  },
+  {
+    "id": "task-4",
+    "title": "Tighten type scale",
+    "description": "Bring hierarchy into focus across the workspace and detail views.",
+    "status": "in-progress",
+    "priority": "high",
+    "assignee": "Fatima",
+    "dueDate": "2026-09-09",
+    "tags": [
+      "design system"
+    ],
+    "createdAt": "2026-09-03T08:00:00.000Z"
+  },
+  {
+    "id": "task-5",
+    "title": "Set up event tracking",
+    "description": "Capture the moments that tell us whether the new flow is working.",
+    "status": "review",
+    "priority": "medium",
+    "assignee": "Sam",
+    "dueDate": "2026-09-11",
+    "tags": [
+      "analytics"
+    ],
+    "createdAt": "2026-09-04T08:00:00.000Z"
+  },
+  {
+    "id": "task-6",
+    "title": "Ship navigation refresh",
+    "description": "The new information architecture is live for the whole team.",
+    "status": "done",
+    "priority": "low",
+    "assignee": "Jordan",
+    "dueDate": "2026-09-05",
+    "tags": [
+      "release"
+    ],
+    "createdAt": "2026-09-01T08:00:00.000Z"
+  },
+  {
+    "id": "task-1788822975792",
+    "title": "cv",
+    "description": "dfghjk",
+    "status": "backlog",
+    "priority": "medium",
+    "assignee": "You",
+    "dueDate": "2026-09-08",
+    "tags": [
+      "edrftgyhu"
+    ],
+    "createdAt": "2026-09-07T23:16:15.792Z"
+  }
+]
